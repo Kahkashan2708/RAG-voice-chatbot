@@ -7,3 +7,9 @@ sentence-transformers
 langchain-community
 python-dotenv
 sarvamai
+torch
+pytorch-lightning
+gradio
+fastapi
+uvicorn
+# NeMo is installed via git clone in Colab

@@ -1,17 +1,31 @@
 import os
 import requests
 from typing import List
+
 from task4_translate import translate_to_english
 from langchain_community.vectorstores import FAISS
+from langchain.embeddings import HuggingFaceEmbeddings
+
 
 # --------------------------------------------------
-# ASR: Call FastAPI endpoint (placeholder)
+# CONFIG
+# --------------------------------------------------
+
+ASR_URL = "http://127.0.0.1:8000/transcribe"
+VECTOR_DB_PATH = "vector_db/faiss_index"
+
+#  MUST be same as Task-2 embedding model
+EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
+
+
+# --------------------------------------------------
+# ASR: Call IndicConformer FastAPI
+# --------------------------------------------------
+
 def transcribe_audio(audio_file_path: str) -> str:
     """
-    Send audio file to ASR FastAPI endpoint and return transcription.
+    Send audio file to IndicConformer ASR FastAPI endpoint
     """
-
-    asr_url = "http://127.0.0.1:8000/transcribe"
 
     if not os.path.exists(audio_file_path):
         raise FileNotFoundError(f"Audio file not found: {audio_file_path}")
@@ -24,48 +38,53 @@ def transcribe_audio(audio_file_path: str) -> str:
                 "audio/wav"
             )
         }
-
-        response = requests.post(asr_url, files=files)
+        response = requests.post(ASR_URL, files=files)
 
     if response.status_code != 200:
         raise RuntimeError(
-            f"ASR API failed with status code {response.status_code}: {response.text}"
+            f"ASR API failed {response.status_code}: {response.text}"
         )
 
     return response.json()["transcription"]
 
 
-
 # --------------------------------------------------
-# Vector DB: Retrieve top-2 chunks (placeholder)
+# Vector DB Retrieval
+# --------------------------------------------------
 
 def retrieve_relevant_chunks(
     query: str,
-    vector_db_path: str = "vector_db/faiss_index",
     top_k: int = 2
-):
+) -> List[str]:
+    """
+    Retrieve top-k relevant chunks from FAISS vector DB
+    """
+
+    embeddings = HuggingFaceEmbeddings(
+        model_name=EMBEDDING_MODEL_NAME
+    )
+
     vector_store = FAISS.load_local(
-        vector_db_path,
-        embeddings=None,
+        VECTOR_DB_PATH,
+        embeddings,
         allow_dangerous_deserialization=True
     )
 
-    results = vector_store.similarity_search_by_vector(
-        vector_store.index.reconstruct_n(0, vector_store.index.ntotal)[0],
-        k=top_k
-    )
+    docs = vector_store.similarity_search(query, k=top_k)
 
-    return [doc.page_content for doc in results]
+    return [doc.page_content for doc in docs]
 
 
-# LLM: Generate answer using retrieved context (placeholder)
 # --------------------------------------------------
+# LLM: GitHub Models
+# --------------------------------------------------
+
 def generate_answer_from_llm(
     question: str,
     context_chunks: List[str]
 ) -> str:
     """
-    Generate final answer using GitHub Models (OpenAI-compatible API)
+    Generate answer using GitHub Models (OpenAI compatible API)
     """
 
     github_token = os.getenv("GITHUB_TOKEN")
@@ -86,7 +105,7 @@ def generate_answer_from_llm(
         "messages": [
             {
                 "role": "system",
-                "content": "You are a helpful AI assistant. Answer strictly using the provided context."
+                "content": "Answer strictly using the provided context."
             },
             {
                 "role": "user",
@@ -105,26 +124,28 @@ def generate_answer_from_llm(
 
     return response.json()["choices"][0]["message"]["content"]
 
+
 # --------------------------------------------------
-# Main RAG pipeline
+# MAIN RAG PIPELINE
 # --------------------------------------------------
 
 def run_rag_pipeline(audio_file_path: str) -> str:
     """
-    End-to-end RAG pipeline:
-    Audio -> ASR -> Translation -> Retrieval -> LLM -> Answer
+    Audio → ASR → Translation → Retrieval → LLM → Answer
     """
 
-    # Step 1: Transcribe audio
-    transcription = transcribe_audio(audio_file_path)
+    # Step 1: ASR
+    hindi_text = transcribe_audio(audio_file_path)
+    print("\nASR Output:\n", hindi_text)
 
-    # Step 2: Translate to English
-    english_question = translate_to_english(transcription)
+    # Step 2: Translate
+    english_question = translate_to_english(hindi_text)
+    print("\nTranslated Question:\n", english_question)
 
-    # Step 3: Retrieve relevant chunks
+    # Step 3: Retrieve context
     context_chunks = retrieve_relevant_chunks(english_question)
 
-    # Step 4: Generate answer from LLM
+    # Step 4: Generate answer
     final_answer = generate_answer_from_llm(
         english_question,
         context_chunks
@@ -133,22 +154,14 @@ def run_rag_pipeline(audio_file_path: str) -> str:
     return final_answer
 
 
-# -----------------------------------------------
+# --------------------------------------------------
+# LOCAL TEST
+# --------------------------------------------------
+
 if __name__ == "__main__":
     audio_path = "sample.wav"
 
-    # Step 1: ASR
-    asr_text = transcribe_audio(audio_path)
-    print("\nASR Output:\n", asr_text)
+    answer = run_rag_pipeline(audio_path)
 
-    # Step 2: Translation
-    english_text = translate_to_english(asr_text)
-    print("\nTranslated Text:\n", english_text)
-
-    # Step 3: Vector DB Retrieval
-    chunks = retrieve_relevant_chunks(english_text)
-
-    # Step 4: LLM Answer
-    answer = generate_answer_from_llm(english_text, chunks)
-    print("\nFinal Answer (LLM Generated):\n")
+    print("\nFinal Answer:\n")
     print(answer)

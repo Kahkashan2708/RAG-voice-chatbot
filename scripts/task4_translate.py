@@ -19,21 +19,6 @@ if SARVAM_API_KEY is None:
 # Translation function
 
 def translate_to_english(text: str, source_language_code: str = "auto") -> str:
-    """
-    Translates input text from any supported language to English
-    using Sarvam's Translation API.
-
-    Args:
-        text (str): Input text to be translated.
-        source_language_code (str): Language code of input text.
-                                    Use 'auto' for automatic detection.
-
-    Returns:
-        str: Translated English text.
-
-    Raises:
-        ValueError: If input text is empty.
-    """
 
     if not text or not text.strip():
         raise ValueError("Input text must be a non-empty string.")
@@ -54,7 +39,7 @@ def translate_to_english(text: str, source_language_code: str = "auto") -> str:
     return response.translated_text
 
 
-# Local test (for standalone execution)
+# Local test 
 
 if __name__ == "__main__":
     sample_text = "मुझे कृत्रिम बुद्धिमत्ता के बारे में बताओ"

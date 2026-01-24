@@ -1,44 +1,55 @@
 from fastapi import FastAPI, UploadFile, File
-from faster_whisper import WhisperModel
 import tempfile
 import os
+import torch
+import nemo.collections.asr as nemo_asr
+
+
+# FastAPI app
 
 app = FastAPI(
     title="Hindi ASR Service",
-    description="ASR using Faster-Whisper",
+    description="ASR using AI4Bharat IndicConformer (NeMo)",
     version="1.0"
 )
 
-# Load model
-model = WhisperModel(
-    "small",
-    device="cpu",
-    compute_type="int8"
-)
 
+# Load IndicConformer model
+MODEL_PATH ="RAG-voice-chatbot/models/indicconformer_stt_hi_hybrid_rnnt_large.nemo"
+
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+
+model = nemo_asr.models.EncDecHybridRNNTCTCBPEModel.restore_from(
+    restore_path=MODEL_PATH,
+    map_location=DEVICE
+)
+model.eval()
+
+
+# Health check
 @app.get("/")
 def health():
-    return {"status": "ASR service running"}
+    return {"status": "IndicConformer ASR service running"}
 
+
+# Transcription endpoint
 @app.post("/transcribe")
 async def transcribe(file: UploadFile = File(...)):
+    # Save uploaded audio temporarily
     with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
         tmp.write(await file.read())
         audio_path = tmp.name
 
     try:
-        segments, info = model.transcribe(
-            audio_path,
-            language="hi",
-            beam_size=5
-        )
-
-        text = " ".join(seg.text for seg in segments)
+        with torch.no_grad():
+            transcription = model.transcribe(
+                audio=[audio_path],
+                language_id="hi"   # Hindi
+            )
 
         return {
-            "language": info.language,
-            "confidence": info.language_probability,
-            "transcription": text.strip()
+            "language": "hi",
+            "transcription": transcription[0]
         }
 
     finally:
