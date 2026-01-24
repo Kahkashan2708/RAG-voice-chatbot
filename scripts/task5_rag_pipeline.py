@@ -1,55 +1,58 @@
 import os
-import requests
 from typing import List
+import torch
+import nemo.collections.asr as nemo_asr
 
-from task4_translate import translate_to_english
+from scripts.task4_translate import translate_to_english
 from langchain_community.vectorstores import FAISS
-from langchain.embeddings import HuggingFaceEmbeddings
+from langchain_community.embeddings import HuggingFaceEmbeddings
+import requests
 
 
 # --------------------------------------------------
 # CONFIG
 # --------------------------------------------------
 
-ASR_URL = "http://127.0.0.1:8000/transcribe"
 VECTOR_DB_PATH = "vector_db/faiss_index"
 
-#  MUST be same as Task-2 embedding model
+# MUST be same as Task-2 embedding model
 EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 
+ASR_MODEL_PATH = "models/indicconformer_stt_hi_hybrid_rnnt_large.nemo"
+
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+
 
 # --------------------------------------------------
-# ASR: Call IndicConformer FastAPI
+# LOAD ASR MODEL (DIRECT, NO FASTAPI)
 # --------------------------------------------------
+
+asr_model = nemo_asr.models.EncDecHybridRNNTCTCBPEModel.restore_from(
+    restore_path=ASR_MODEL_PATH,
+    map_location=DEVICE
+)
+asr_model.eval()
+
 
 def transcribe_audio(audio_file_path: str) -> str:
     """
-    Send audio file to IndicConformer ASR FastAPI endpoint
+    Transcribe Hindi audio using IndicConformer (NeMo)
     """
 
     if not os.path.exists(audio_file_path):
         raise FileNotFoundError(f"Audio file not found: {audio_file_path}")
 
-    with open(audio_file_path, "rb") as audio_file:
-        files = {
-            "file": (
-                os.path.basename(audio_file_path),
-                audio_file,
-                "audio/wav"
-            )
-        }
-        response = requests.post(ASR_URL, files=files)
-
-    if response.status_code != 200:
-        raise RuntimeError(
-            f"ASR API failed {response.status_code}: {response.text}"
+    with torch.no_grad():
+        text = asr_model.transcribe(
+            audio=[audio_file_path],
+            language_id="hi"
         )
 
-    return response.json()["transcription"]
+    return text[0]
 
 
 # --------------------------------------------------
-# Vector DB Retrieval
+# VECTOR DB RETRIEVAL
 # --------------------------------------------------
 
 def retrieve_relevant_chunks(
@@ -160,7 +163,6 @@ def run_rag_pipeline(audio_file_path: str) -> str:
 
 if __name__ == "__main__":
     audio_path = "sample.wav"
-
     answer = run_rag_pipeline(audio_path)
 
     print("\nFinal Answer:\n")
