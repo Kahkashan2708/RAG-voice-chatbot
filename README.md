@@ -44,8 +44,6 @@ RAG-voice-chatbot/
 ├── vector_db/
 │ └── faiss_index/
 │
-├── models/
-│ └── indicconformer_stt_hi_hybrid_rnnt_large.nemo
 │
 ├── scripts/
 │ ├── app.py # Gradio UI
@@ -55,11 +53,11 @@ RAG-voice-chatbot/
 │ ├── task4_translate.py # Translation API
 │ └── task5_rag_pipeline.py # End-to-end RAG pipeline
 │
-├── Notebook/
-│ └── RAG_Notebook.ipynb # Development notebook
+├── RAG_Notebook.ipynb #  notebook
 │
 ├── requirements.txt
 ├── README.md
+├── sample.wav
 └── .gitignore
 ```
 ---
@@ -157,4 +155,57 @@ pip install -r requirements.txt
 * export GITHUB_TOKEN=your_token_here
 * export SARVAM_API_KEY=your_key_here
 ```
+---
+##  How to Run
 
+### 1. Create Vector Database
+```bash
+python scripts/task2_vector_db.py
+```
+### 2. Start ASR Service
+```bash
+uvicorn scripts.task3_asr:app --host 0.0.0.0 --port 8000
+```
+### 3. Launch UI
+
+```python
+python scripts/app.py
+```
+---
+
+## Observations & Challenges
+* Handling large audio models required careful memory management
+
+* Overlapping chunks significantly improved retrieval quality
+
+* Managing environment variables securely was critical
+
+* Integrating multiple components (ASR, translation, retrieval, LLM) required strict modularization
+
+
+---
+
+## License
+This project is open-sourced under the MIT License.
+
+---
+
+## Acknowledgements
+
+* NeMo (ASR)
+
+* Sarvam AI (Translation)
+
+* FAISS
+
+* LangChain
+
+* GitHub Models
+
+* Gradio
+
+* Sarvam AI (Translation)
+
+* LangChain
+
+---
