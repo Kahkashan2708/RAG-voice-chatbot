@@ -128,7 +128,7 @@ Steps:
 
 ---
 
-##  Bonus: Gradio UI
+## Gradio UI
 
 - Upload Hindi `.wav` audio
 - Click **Ask Question**
@@ -152,8 +152,8 @@ pip install -r requirements.txt
 
 ## Set environment variables:
 ```bash
-* export GITHUB_TOKEN=your_token_here
-* export SARVAM_API_KEY=your_key_here
+export GITHUB_TOKEN=your_token_here
+export SARVAM_API_KEY=your_key_here
 ```
 ---
 ##  How to Run
